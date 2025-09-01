@@ -1,293 +1,325 @@
-# Contactio MVP – Umsetzungsplan (Codebase-aligned)
+﻿# Contactio MVP â€“ Umsetzungsplan (Codebase-aligned)
 
-Kurzfassung: Wir realisieren das MVP strikt entlang eurer bestehenden Architektur: React (Vite + TanStack Router) im Frontend, Convex als Backend/DB, Clerk für Auth. Microsoft 365 wird via Graph Webhooks + Delta eingebunden. Webhooks, Jobs und Cron laufen als Convex `httpEndpoint`/`action`/Scheduler. LLM-Aufrufe erfolgen gegen einen externen EU/CH‑konformen Endpoint. Redis, NestJS, Next.js und Postgres sind für das MVP nicht nötig. Wo die ursprüngliche Vision abweicht, „gewinnt“ eure aktuelle Codebasis – unten sind die Alternativen/Checks jeweils benannt.
+Kurzfassung: Wir realisieren das MVP strikt entlang eurer bestehenden Architektur: React (Vite + TanStack Router) im Frontend, Convex als Backend/DB, Clerk fÃ¼r Auth. Microsoft 365 wird via Graph Webhooks + Delta eingebunden. Webhooks, Jobs und Cron laufen als Convex `httpEndpoint`/`action`/Scheduler. LLM-Aufrufe erfolgen gegen einen externen EU/CHâ€‘konformen Endpoint. Redis, NestJS, Next.js und Postgres sind fÃ¼r das MVP nicht nÃ¶tig. Wo die ursprÃ¼ngliche Vision abweicht, â€žgewinntâ€œ eure aktuelle Codebasis â€“ unten sind die Alternativen/Checks jeweils benannt.
 
-In diesem Plan nennen wir pro Schritt: Ziel, Detaildesign, Codebase‑Impact (konkrete Änderungen/Erweiterungen), Checks/Entscheide (für Senior‑Review), und Akzeptanzkriterien.
+In diesem Plan nennen wir pro Schritt: Ziel, Detaildesign, Codebaseâ€‘Impact (konkrete Ã„nderungen/Erweiterungen), Checks/Entscheide (fÃ¼r Seniorâ€‘Review), und Akzeptanzkriterien.
 
-—
+â€”
 
 ## Schritt 1: Tenants, Rollen und Datenmodell konsolidieren
 
-Ziel: Multi‑Tenant sauber abbilden, Rollen verankern, Kontakte auf Tenant‑Ebene statt nur User‑Ebene scopen; Basis für Policies/Settings/Proposals schaffen.
+Ziel: Multiâ€‘Tenant sauber abbilden, Rollen verankern, Kontakte auf Tenantâ€‘Ebene statt nur Userâ€‘Ebene scopen; Basis fÃ¼r Policies/Settings/Proposals schaffen.
 
 Detaildesign
 - Tenant-Modell:
   - `tenants` Tabelle (Convex): `id`, `name`, `createdAt`.
   - `memberships` Tabelle: `tenantId`, `userId` (Clerk `subject`), `role` in {`owner`,`reviewer`,`viewer`}, `createdAt`.
-  - Default: Erster registrierter Nutzer wird `owner` seines Default‑Tenants.
-- Kontakte migrieren von User‑Scope auf Tenant‑Scope:
-  - `contacts` um `tenantId` erweitern. `ownerId` bleibt für Ownership/ACL optional erhalten, aber alle Queries werden primär nach `tenantId` gefiltert.
+  - Default: Erster registrierter Nutzer wird `owner` seines Defaultâ€‘Tenants.
+- Kontakte migrieren von Userâ€‘Scope auf Tenantâ€‘Scope:
+  - `contacts` um `tenantId` erweitern. `ownerId` bleibt fÃ¼r Ownership/ACL optional erhalten, aber alle Queries werden primÃ¤r nach `tenantId` gefiltert.
   - Indexe: `by_tenant_lastName_firstName` und `by_tenant_createdAt`.
-  - Migrationsstrategie: Für existierende Kontakte `tenantId` aus erstem Membership des Besitzers ableiten.
+  - Migrationsstrategie: FÃ¼r existierende Kontakte `tenantId` aus erstem Membership des Besitzers ableiten.
 - Settings/Policies:
-  - `tenantSettings`: `tenantId`, `ownedDomains` (eigene Domains), `doNotCapture` (Domains/Patterns), `defaultCountryHint`, `groupScope` (optionale M365‑Gruppe), `llmProvider`, `createdAt`,`updatedAt`.
-  - `policies`: `tenantId`, `autoApproveThreshold` (z. B. 0.85), `autoApproveOnlyEmptyFields` (bool), `sensitiveFields` (z. B. `mobile`), `createdAt`,`updatedAt`.
+  - `tenantSettings`: `tenantId`, `ownedDomains` (eigene Domains), `doNotCapture` (Domains/Patterns), `defaultCountryHint`, `groupScope` (optionale M365â€‘Gruppe), `llmProvider`, `createdAt`,`updatedAt`.
+  - `policies`: `tenantId`, `autoApproveThreshold` (z.â€¯B. 0.85), `autoApproveOnlyEmptyFields` (bool), `sensitiveFields` (z.â€¯B. `mobile`), `createdAt`,`updatedAt`.
 - Proposals & Historie (Strukturen vorbereiten, Implementierung in Schritt 4):
-  - `proposals`: `tenantId`, `contactId|null`, `diff` (alt→neu), `source` (Mailbox, `internetMessageId`, `conversationId`, Zeit, Snippet), `confidence`, `status` in {`pending`,`approved`,`rejected`}, `createdAt`,`decidedAt`,`decidedBy`.
+  - `proposals`: `tenantId`, `contactId|null`, `diff` (altâ†’neu), `source` (Mailbox, `internetMessageId`, `conversationId`, Zeit, Snippet), `confidence`, `status` in {`pending`,`approved`,`rejected`}, `createdAt`,`decidedAt`,`decidedBy`.
   - `fieldHistory` (optional MVP+1): je Kontakt, Feld, Quelle, Zeit.
 
-Codebase‑Impact
+Codebaseâ€‘Impact
 - `packages/backend/convex/schema.ts`:
-  - Neue Tabellen: `tenants`, `memberships`, `tenantSettings`, `policies`, `proposals` (+ spätere `messages`, `conversations`, `locks`).
+  - Neue Tabellen: `tenants`, `memberships`, `tenantSettings`, `policies`, `proposals` (+ spÃ¤tere `messages`, `conversations`, `locks`).
   - `contacts` um `tenantId` erweitern + neue Indexe.
 - `packages/backend/convex/contacts.ts`:
-  - Alle Queries/Mutations auf `tenantId` statt `ownerId` trimmen (ACL via Membership prüfen).
-  - Optional: Soft‑Delete/Status belassen.
+  - Alle Queries/Mutations auf `tenantId` statt `ownerId` trimmen (ACL via Membership prÃ¼fen).
+  - Optional: Softâ€‘Delete/Status belassen.
 - Neue Module: `tenants.ts`, `settings.ts`, `policies.ts` (CRUD + Helpers).
 - Frontend (`apps/web`):
-  - Router‑Context mit `tenantId`/Role anreichern (aus Convex `me()` Query).
-  - Bestehende Views (Liste/Detail) auf Tenant‑Scope umstellen.
+  - Routerâ€‘Context mit `tenantId`/Role anreichern (aus Convex `me()` Query).
+  - Bestehende Views (Liste/Detail) auf Tenantâ€‘Scope umstellen.
 
 Checks/Entscheide
-- Rollenmodell ausreichend (Owner/Reviewer/Viewer) oder weitere Stufen nötig?
-- Migration: Akzeptabel, dass bestehende Daten dem Default‑Tenant des Users zugeordnet werden?
-- Eigene Domains: UI‑Eingabe vs. Auto‑Ermittlung aus verifizierten Absendern.
+- Rollenmodell ausreichend (Owner/Reviewer/Viewer) oder weitere Stufen nÃ¶tig?
+- Migration: Akzeptabel, dass bestehende Daten dem Defaultâ€‘Tenant des Users zugeordnet werden?
+- Eigene Domains: UIâ€‘Eingabe vs. Autoâ€‘Ermittlung aus verifizierten Absendern.
 
 Akzeptanzkriterien
-- Alle Contact‑Listen/Details zeigen nur Daten des aktiven Tenants.
+- Alle Contactâ€‘Listen/Details zeigen nur Daten des aktiven Tenants.
 - Neue Kontakte werden mit `tenantId` persistiert.
 - Settings/Policies sind pro Tenant les-/schreibbar (Owner/Admin only).
 
-—
+â€”
 
 ## Schritt 2: Microsoft 365 Anbindung, Webhooks & Delta
+---
 
-Ziel: Eingehende Mails pro gewähltem Postfach/Eintreff-Zeitpunkt robust erfassen (Webhook „created“), verifizieren, entschlüsseln (Rich Notifications), idempotent verarbeiten und bei Ausfällen via Delta nachziehen.
+### Statusupdate Schritt 2 (Stand: 2025-09-01)
+
+Erledigt
+- Schema erweitert: mailboxes, subscriptions, messages, conversations, locks inkl. Indexe.
+- Webhook: GET/POST /webhooks/graph (Handshake, 202-Antwort, Fehlerrobustheit).
+- Entschlüsselung: RSA-OAEP (SHA-256) + AES-CBC für encryptedContent mit PEM-Secret.
+- Idempotenz: Lock msg:: in locks.
+- "Nur neueste Inbound je Konversation": Pflege conversations.maxReceivedInbound.
+- Graph-Fallback: Fetch-by-resource, falls Payload fehlt.
+- Subscriptions-Backend: listMailboxes (action), enableMailbox, disableMailbox, listSubscriptions, enewExpiring, deltaSyncMailbox, econcileGroupScope.
+- UI (Settings): Bereich „Microsoft 365“ mit Admin-Consent-Link, optionalem GroupScope-Feld, Postfachliste inkl. Toggle und „Delta-Sync“.
+
+Offen (innerhalb Schritt 2 sinnvoll, aber optional für MVP)
+- Signaturprüfung der alidationTokens gegen Microsoft JWKs (derzeit Stub).
+- Scheduler/Cron in Convex für enewExpiring und econcileGroupScope (derzeit manuell startbar).
+- Bessere Fehler-/Statusanzeigen im UI (aktiv/fehlgeschlagen/erneuert) und Log-Instrumentierung.
+- Touchpoints für Multi-Empfänger (Duplikate protokollieren) – Datenmodell vorbereitet, Logik minimal.
+
+Voraussetzungen/Env
+- GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET, GRAPH_TENANT_ID, GRAPH_WEBHOOK_URL.
+- GRAPH_ENCRYPTION_PUBLIC_CERT_PEM (Base64 DER), GRAPH_ENCRYPTION_PRIVATE_KEY_PEM (PEM).
+
+Testhinweise
+- Handshake: GET /webhooks/graph?validationToken=ping → 200 Body ping.
+- Postfach aktivieren → Abo angelegt, Ablaufzeit sichtbar.
+- Testmail senden → Nachricht als pending erfasst (idempotent, nur neueste Inbound je Konversation).
+- „Delta-Sync“ → initialer Import/Gaps.
+
+---
+
+Ziel: Eingehende Mails pro gewÃ¤hltem Postfach/Eintreff-Zeitpunkt robust erfassen (Webhook â€žcreatedâ€œ), verifizieren, entschlÃ¼sseln (Rich Notifications), idempotent verarbeiten und bei AusfÃ¤llen via Delta nachziehen.
 
 Detaildesign
-- App‑Registrierung (Entra ID): Multi‑Tenant, App‑Permission `Mail.Read`; optional `MailboxSettings.Read`. Auth über Client‑Zertifikat (empfohlen) oder Secret. Reply‑URL für Admin‑Consent/Onboarding in der App.
+- Appâ€‘Registrierung (Entra ID): Multiâ€‘Tenant, Appâ€‘Permission `Mail.Read`; optional `MailboxSettings.Read`. Auth Ã¼ber Clientâ€‘Zertifikat (empfohlen) oder Secret. Replyâ€‘URL fÃ¼r Adminâ€‘Consent/Onboarding in der App.
 - Onboarding/UI:
-  - „Mit Microsoft verbinden“ startet Admin‑Consent.
+  - â€žMit Microsoft verbindenâ€œ startet Adminâ€‘Consent.
   - Nach Consent: Mailboxen (oder Gruppenmitglieder) listen; Auswahl speichern.
   - Pro Mailbox Subscription anlegen auf Resource `/users/{id}/mailFolders('inbox')/messages` mit: `changeType=created`, `includeResourceData=true`, `encryptionCertificate`, `clientState=GUID`, `$select=(id,receivedDateTime,conversationId,internetMessageId,from,toRecipients,ccRecipients,bodyPreview)`.
   - Subscriptions mit Expiry (max. 7 Tage) speichern.
-- Webhook‑Endpoint:
-  - Convex `httpEndpoint` `POST /webhooks/graph` öffentlich; Validation‑Handshake (Token zurückgeben), `validationTokens` prüfen, Issuer verifizieren.
-  - `encryptedContent` mit privatem Schlüssel entschlüsseln (PEM in Convex Env‑Secret). Resource‑Payload extrahieren.
+- Webhookâ€‘Endpoint:
+  - Convex `httpEndpoint` `POST /webhooks/graph` Ã¶ffentlich; Validationâ€‘Handshake (Token zurÃ¼ckgeben), `validationTokens` prÃ¼fen, Issuer verifizieren.
+  - `encryptedContent` mit privatem SchlÃ¼ssel entschlÃ¼sseln (PEM in Convex Envâ€‘Secret). Resourceâ€‘Payload extrahieren.
   - Antwort immer schnell `202`. Verarbeitung als `action` Job.
-- Idempotenz & Multi‑Empfänger:
-  - Dedupe‑Key: `internetMessageId`. Erste verarbeitende Mailbox wird Owner; weitere Events markieren als Duplikate, Empfängerliste wird als Touchpoints protokolliert.
-  - Idempotenzschlüssel speichern: `msg:${tenantId}:${internetMessageId}`; TTL (z. B. 24–48h) oder permanent in `messages` Tabelle. Kein Redis nötig – Convex‑Tabelle `locks`/`messages` genügt (Write‑If‑Absent Logik im Code).
-- „Nur neueste Mail der Konversation“:
-  - Pro `conversationId` je Tenant `maxReceivedInbound` tracken; nur verarbeiten, wenn `receivedDateTime` ≥ gespeichertes Max für Inbound.
-  - Inbound‑Prüfung: `from.address` nicht in `ownedDomains`/Do‑Not‑Capture.
+- Idempotenz & Multiâ€‘EmpfÃ¤nger:
+  - Dedupeâ€‘Key: `internetMessageId`. Erste verarbeitende Mailbox wird Owner; weitere Events markieren als Duplikate, EmpfÃ¤ngerliste wird als Touchpoints protokolliert.
+  - IdempotenzschlÃ¼ssel speichern: `msg:${tenantId}:${internetMessageId}`; TTL (z.â€¯B. 24â€“48h) oder permanent in `messages` Tabelle. Kein Redis nÃ¶tig â€“ Convexâ€‘Tabelle `locks`/`messages` genÃ¼gt (Writeâ€‘Ifâ€‘Absent Logik im Code).
+- â€žNur neueste Mail der Konversationâ€œ:
+  - Pro `conversationId` je Tenant `maxReceivedInbound` tracken; nur verarbeiten, wenn `receivedDateTime` â‰¥ gespeichertes Max fÃ¼r Inbound.
+  - Inboundâ€‘PrÃ¼fung: `from.address` nicht in `ownedDomains`/Doâ€‘Notâ€‘Capture.
 - Renewal & Fallback:
-  - Convex Scheduler Job: Alle 3–5 Tage Subscriptions erneuern.
-  - Delta‑Fallback (`/messages/delta`) mit gespeicherten `deltaToken` pro Mailbox bei Lücken/Erstimport.
-  - Reconcile‑Job: Gruppenmitglieder (falls Gruppenscope) zyklisch prüfen; Subscriptions anpassen.
+  - Convex Scheduler Job: Alle 3â€“5 Tage Subscriptions erneuern.
+  - Deltaâ€‘Fallback (`/messages/delta`) mit gespeicherten `deltaToken` pro Mailbox bei LÃ¼cken/Erstimport.
+  - Reconcileâ€‘Job: Gruppenmitglieder (falls Gruppenscope) zyklisch prÃ¼fen; Subscriptions anpassen.
 
-Codebase‑Impact
+Codebaseâ€‘Impact
 - `packages/backend/convex/graph.ts` (neu):
-  - `httpEndpoint` `/webhooks/graph` (Handshake, Validierung, Entschlüsselung).
-  - `action` `enqueueMessageProcessing(payload)`; Hilfsfunktionen zum Graph‑GET/Delta (per `fetch`, kein SDK nötig).
+  - `httpEndpoint` `/webhooks/graph` (Handshake, Validierung, EntschlÃ¼sselung).
+  - `action` `enqueueMessageProcessing(payload)`; Hilfsfunktionen zum Graphâ€‘GET/Delta (per `fetch`, kein SDK nÃ¶tig).
 - Neue Tabellen in `schema.ts`:
   - `mailboxes` (tenantId, userId, address, displayName, enabled).
   - `subscriptions` (tenantId, mailboxId, subscriptionId, expiresAt, clientState, deltaToken?).
-  - `messages` (tenantId, internetMessageId uniq‑guard, conversationId, receivedDateTime, from, to/cc, mailboxOwnerId, status).
+  - `messages` (tenantId, internetMessageId uniqâ€‘guard, conversationId, receivedDateTime, from, to/cc, mailboxOwnerId, status).
   - `conversations` (tenantId, conversationId, maxReceivedInbound).
-  - `locks` (generic key/ttl, falls separat gewünscht).
-- `packages/backend/convex/settings.ts`: CRUD für Domains/Do‑Not‑Capture/GroupScope.
-- Frontend: Onboarding/Wizard in `apps/web` (Route „Einstellungen > Microsoft verbinden“, Auswahl Postfächer/Gruppe, Status der Subscriptions).
+  - `locks` (generic key/ttl, falls separat gewÃ¼nscht).
+- `packages/backend/convex/settings.ts`: CRUD fÃ¼r Domains/Doâ€‘Notâ€‘Capture/GroupScope.
+- Frontend: Onboarding/Wizard in `apps/web` (Route â€žEinstellungen > Microsoft verbindenâ€œ, Auswahl PostfÃ¤cher/Gruppe, Status der Subscriptions).
 
 Checks/Entscheide
-- Convex `httpEndpoint` ausreichend für Graph‑Handshake? (Ja, Antwort <10s sicherstellen.)
-- Zertifikatsverwaltung: PEM‑Secret in Convex Env; Rotationsplan definieren.
-- SDK vs. `fetch`: Für MVP `fetch` reicht; SDK optional später.
+- Convex `httpEndpoint` ausreichend fÃ¼r Graphâ€‘Handshake? (Ja, Antwort <10s sicherstellen.)
+- Zertifikatsverwaltung: PEMâ€‘Secret in Convex Env; Rotationsplan definieren.
+- SDK vs. `fetch`: FÃ¼r MVP `fetch` reicht; SDK optional spÃ¤ter.
 
 Akzeptanzkriterien
-- Webhook‑Validation und Entschlüsselung funktionieren in Staging (mit echtem Test‑Tenant).
-- Neue Nachricht erzeugt genau einen Processing‑Job pro `internetMessageId` (Multi‑Empfänger deduped).
-- Delta‑Fallback kann initialen Import und Lücken schließen.
+- Webhookâ€‘Validation und EntschlÃ¼sselung funktionieren in Staging (mit echtem Testâ€‘Tenant).
+- Neue Nachricht erzeugt genau einen Processingâ€‘Job pro `internetMessageId` (Multiâ€‘EmpfÃ¤nger deduped).
+- Deltaâ€‘Fallback kann initialen Import und LÃ¼cken schlieÃŸen.
 
-—
+â€”
 
-## Schritt 3: Vorverarbeitung, Signatur‑Erkennung & LLM‑Extraktion
+## Schritt 3: Vorverarbeitung, Signaturâ€‘Erkennung & LLMâ€‘Extraktion
 
-Ziel: Aus der neuesten Inbound‑Mail je Konversation die Signatur robust isolieren und strukturierte Kontaktdaten mit Validierung/Normalisierung extrahieren.
+Ziel: Aus der neuesten Inboundâ€‘Mail je Konversation die Signatur robust isolieren und strukturierte Kontaktdaten mit Validierung/Normalisierung extrahieren.
 
 Detaildesign
 - Vorverarbeitung:
-  - HTML → DOM normalisieren, Styles/Skripte strippen, Inline‑CSS ignorieren.
-  - Zitat‑Trim: Erkenne Gmail `gmail_quote`, Outlook „Am … schrieb …“, `blockquote`‑Ketten; entferne Disclaimer/Signaturen vergangener Nachrichten (Heuristiken/Regex, ländersprachliche Muster DE/EN/FR/IT).
-  - Sammle `img`‑`alt`‑Texte (häufig Telefonnummern bei Bildsignaturen).
-- Locator‑Pipeline (Rule‑based + kleiner Klassifikator optional):
+  - HTML â†’ DOM normalisieren, Styles/Skripte strippen, Inlineâ€‘CSS ignorieren.
+  - Zitatâ€‘Trim: Erkenne Gmail `gmail_quote`, Outlook â€žAm â€¦ schrieb â€¦â€œ, `blockquote`â€‘Ketten; entferne Disclaimer/Signaturen vergangener Nachrichten (Heuristiken/Regex, lÃ¤ndersprachliche Muster DE/EN/FR/IT).
+  - Sammle `img`â€‘`alt`â€‘Texte (hÃ¤ufig Telefonnummern bei Bildsignaturen).
+- Locatorâ€‘Pipeline (Ruleâ€‘based + kleiner Klassifikator optional):
   - Abschnitte taggen: `signature | content | quote | legal`.
-  - Kandidatenfenster: unterer Bereich nach Grußformel, limitierte Zeilenanzahl.
-- LLM‑Extraktion:
-  - Prompt (Few‑Shots) mit Strict‑JSON‑Schema:
+  - Kandidatenfenster: unterer Bereich nach GruÃŸformel, limitierte Zeilenanzahl.
+- LLMâ€‘Extraktion:
+  - Prompt (Fewâ€‘Shots) mit Strictâ€‘JSONâ€‘Schema:
     - `full_name`, `given_name|null`, `family_name|null`, `job_title|null`, `company|null`, `emails[]`, `phones[]` mit `{type: work|mobile|direct|fax, number}`, `website|null`, `linkedin|null`, `address{street,postal_code,city,country}`.
   - Validierung/Normalisierung:
-    - E‑Mail RFC‑Check; dedupe/lowercase; Plus‑Alias entfernen.
-    - Telefonnummern → E.164 (libphonenumber), Default‑Land aus Absender‑Domain/TLD oder Tenant‑Hint.
+    - Eâ€‘Mail RFCâ€‘Check; dedupe/lowercase; Plusâ€‘Alias entfernen.
+    - Telefonnummern â†’ E.164 (libphonenumber), Defaultâ€‘Land aus Absenderâ€‘Domain/TLD oder Tenantâ€‘Hint.
     - URLs/Unicode normalisieren (NFC).
-  - Confidence Score: Locator‑Signal + Feldvalidierungen + LLM‑Selbstauskunft gewichtet.
+  - Confidence Score: Locatorâ€‘Signal + Feldvalidierungen + LLMâ€‘Selbstauskunft gewichtet.
 - Fallbacks:
-  - Nur‑Bild‑Signaturen: OCR (Tesseract) + LLM Post‑Processing. Für MVP optional als externer Minimal‑Worker (separate kleine Node‑Service/API) – nur aufrufbar, wenn Bilder erkannt.
-  - VCF‑Anhänge: vCard Parser (direkte Extraktion ohne LLM, wenn vorhanden).
-  - Mehrsprachigkeit: Locale‑Hints via Absender‑Domain/TLD und Tenant‑Settings.
+  - Nurâ€‘Bildâ€‘Signaturen: OCR (Tesseract) + LLM Postâ€‘Processing. FÃ¼r MVP optional als externer Minimalâ€‘Worker (separate kleine Nodeâ€‘Service/API) â€“ nur aufrufbar, wenn Bilder erkannt.
+  - VCFâ€‘AnhÃ¤nge: vCard Parser (direkte Extraktion ohne LLM, wenn vorhanden).
+  - Mehrsprachigkeit: Localeâ€‘Hints via Absenderâ€‘Domain/TLD und Tenantâ€‘Settings.
 
-Codebase‑Impact
+Codebaseâ€‘Impact
 - `packages/backend/convex/extract.ts` (neu):
-  - `action` `preprocessAndExtract(messageId)` führt: Laden Body (Graph GET falls nötig) → Trim & Tagging → Kandidatenwahl → LLM‑Call → Validierung/Normalisierung → Ergebnis + `confidence` zurück.
+  - `action` `preprocessAndExtract(messageId)` fÃ¼hrt: Laden Body (Graph GET falls nÃ¶tig) â†’ Trim & Tagging â†’ Kandidatenwahl â†’ LLMâ€‘Call â†’ Validierung/Normalisierung â†’ Ergebnis + `confidence` zurÃ¼ck.
   - Interne Utils: `trimQuotes()`, `stripDisclaimers()`, `locateSignature()`, `normalizePhones()/emails()/urls()`.
-  - Optional `ocr.ts` Client für externen OCR‑Dienst.
+  - Optional `ocr.ts` Client fÃ¼r externen OCRâ€‘Dienst.
 - Secrets/Config: `LLM_ENDPOINT`, `LLM_API_KEY`, `OCR_ENDPOINT` optional.
-- Tests: Unit‑Tests für Parser/Normalizer (Schritt 5 vertieft).
+- Tests: Unitâ€‘Tests fÃ¼r Parser/Normalizer (Schritt 5 vertieft).
 
 Checks/Entscheide
-- LLM‑Provider (EU/CH) Auswahl; Preis/Latenz/Datenschutz.
-- OCR im MVP aktivieren oder als Feature‑Flag „später“?
-- JSON‑Schema finalisieren (z. B. mehrere Adressen/Phones erlauben?).
+- LLMâ€‘Provider (EU/CH) Auswahl; Preis/Latenz/Datenschutz.
+- OCR im MVP aktivieren oder als Featureâ€‘Flag â€žspÃ¤terâ€œ?
+- JSONâ€‘Schema finalisieren (z.â€¯B. mehrere Adressen/Phones erlauben?).
 
 Akzeptanzkriterien
-- Für kuratierte Testmails werden Felder konsistent extrahiert; Confidence reproduzierbar.
-- Ungültige Werte (E‑Mail/Telefon) werden verworfen/berichtigt.
+- FÃ¼r kuratierte Testmails werden Felder konsistent extrahiert; Confidence reproduzierbar.
+- UngÃ¼ltige Werte (Eâ€‘Mail/Telefon) werden verworfen/berichtigt.
 
-—
+â€”
 
-## Schritt 4: Deduplizierung, Merge, Proposals, Auto‑Approve, „Zuletzt kontaktet“
+## Schritt 4: Deduplizierung, Merge, Proposals, Autoâ€‘Approve, â€žZuletzt kontaktetâ€œ
 
-Ziel: Änderungen korrekt mit bestehenden Kontakten abgleichen, Konflikte als Review‑Proposals aufbereiten oder gemäß Policy automatisch übernehmen; Touchpoints pflegen.
+Ziel: Ã„nderungen korrekt mit bestehenden Kontakten abgleichen, Konflikte als Reviewâ€‘Proposals aufbereiten oder gemÃ¤ÃŸ Policy automatisch Ã¼bernehmen; Touchpoints pflegen.
 
 Detaildesign
-- Matching‑Strategie:
-  - Primär: E‑Mail (case‑insensitive, Plus‑Alias entfernt).
-  - Sekundär: Name × Firma/Domain, Telefonnummern, LinkedIn.
-  - Fuzzy: Trigram/Levenshtein auf Namen/Firmen (leichtes Scoring, keine schweren Abhängigkeiten nötig).
-- Merge‑Regeln:
-  - Leere Felder befüllen automatisch.
-  - Konflikte erzeugen `ChangeProposal` mit Diff (alt vs. neu) inkl. Quelle/Signatur‑Snippet.
+- Matchingâ€‘Strategie:
+  - PrimÃ¤r: Eâ€‘Mail (caseâ€‘insensitive, Plusâ€‘Alias entfernt).
+  - SekundÃ¤r: Name Ã— Firma/Domain, Telefonnummern, LinkedIn.
+  - Fuzzy: Trigram/Levenshtein auf Namen/Firmen (leichtes Scoring, keine schweren AbhÃ¤ngigkeiten nÃ¶tig).
+- Mergeâ€‘Regeln:
+  - Leere Felder befÃ¼llen automatisch.
+  - Konflikte erzeugen `ChangeProposal` mit Diff (alt vs. neu) inkl. Quelle/Signaturâ€‘Snippet.
   - Historie (optional MVP+1) auf Feldebene.
-- Auto‑Approve Policies:
-  - Wenn `confidence ≥ threshold` ODER „nur leere Felder“ → auto.
+- Autoâ€‘Approve Policies:
+  - Wenn `confidence â‰¥ threshold` ODER â€žnur leere Felderâ€œ â†’ auto.
   - Sensible Felder (`mobile` etc.) nie auto.
-- Touchpoints/„Zuletzt kontaktet“:
+- Touchpoints/â€žZuletzt kontaktetâ€œ:
   - Bei deduziertem Kontakt `lastContactedAt` aktualisieren.
-  - Optionale `touchpoints` Tabelle: welcher interne Empfänger, welche Mailbox, wann.
+  - Optionale `touchpoints` Tabelle: welcher interne EmpfÃ¤nger, welche Mailbox, wann.
 - UI Workflows:
-  - Review‑Inbox (Liste) mit Filter/Sort; Bulk‑Approve (z. B. >0.9).
-  - Review‑Detail: Split‑View mit Diff (links) und Signatur‑Snippet/Quelle (rechts); Aktionen: Approve/Reject/Edit+Approve/Snooze.
+  - Reviewâ€‘Inbox (Liste) mit Filter/Sort; Bulkâ€‘Approve (z.â€¯B. >0.9).
+  - Reviewâ€‘Detail: Splitâ€‘View mit Diff (links) und Signaturâ€‘Snippet/Quelle (rechts); Aktionen: Approve/Reject/Edit+Approve/Snooze.
 
-Codebase‑Impact
+Codebaseâ€‘Impact
 - `packages/backend/convex/dedupe.ts` (neu): Matching/Scoring Hilfsfunktionen.
-- `packages/backend/convex/proposals.ts` (neu): CRUD + `approveProposal` (führt Merge aus), `rejectProposal`.
-- `packages/backend/convex/ingest.ts` (neu oder Teil von `graph.ts`): orchestriert `extract` → `dedupe` → `proposal/auto‑merge` → Persistenz.
-- `packages/backend/convex/schema.ts`: Tabellen `proposals`, optional `touchpoints` ergänzen.
+- `packages/backend/convex/proposals.ts` (neu): CRUD + `approveProposal` (fÃ¼hrt Merge aus), `rejectProposal`.
+- `packages/backend/convex/ingest.ts` (neu oder Teil von `graph.ts`): orchestriert `extract` â†’ `dedupe` â†’ `proposal/autoâ€‘merge` â†’ Persistenz.
+- `packages/backend/convex/schema.ts`: Tabellen `proposals`, optional `touchpoints` ergÃ¤nzen.
 - Frontend (`apps/web/src/routes`):
-  - `reviews.tsx` (Liste), `review.$id.tsx` (Detail), Bulk‑Aktionen, Confidence‑Badge, Diff‑Renderer.
-  - `settings.tsx` erweitern: Policies (Threshold, Flags), Do‑Not‑Capture Domains, eigene Domains.
+  - `reviews.tsx` (Liste), `review.$id.tsx` (Detail), Bulkâ€‘Aktionen, Confidenceâ€‘Badge, Diffâ€‘Renderer.
+  - `settings.tsx` erweitern: Policies (Threshold, Flags), Doâ€‘Notâ€‘Capture Domains, eigene Domains.
 
 Checks/Entscheide
-- Fuzzy‑Matching Umfang: MVP leicht, später ausbauen (z. B. Namesaurus/phonetic libs)?
-- Diff‑Darstellung: Komplexe Felder (Phones/Addresses) strukturiert rendern.
+- Fuzzyâ€‘Matching Umfang: MVP leicht, spÃ¤ter ausbauen (z.â€¯B. Namesaurus/phonetic libs)?
+- Diffâ€‘Darstellung: Komplexe Felder (Phones/Addresses) strukturiert rendern.
 
 Akzeptanzkriterien
 - Exakte Duplikate werden ohne Proposal gemerged.
 - Konflikte erscheinen als Proposal; Approve/Reject schreibt korrekt in DB.
-- `lastContactedAt` aktualisiert sich bei neuen Inbound‑Mails.
+- `lastContactedAt` aktualisiert sich bei neuen Inboundâ€‘Mails.
 
-—
+â€”
 
 ## Schritt 5: UI/UX, Sicherheit, Monitoring, Tests & Rollout
 
-Ziel: Bedienelemente für Onboarding/Review/Dashboard liefern, 2FA aktivieren, Health/Logs bereitstellen, Tests aufsetzen und sauber ausrollen.
+Ziel: Bedienelemente fÃ¼r Onboarding/Review/Dashboard liefern, 2FA aktivieren, Health/Logs bereitstellen, Tests aufsetzen und sauber ausrollen.
 
 Detaildesign
 - UI/UX:
-  - Navigation: Dashboard, Reviews, Kontakte, Einstellungen (bestehend ergänzen), Firmen (bestehend), Benutzer (später).
-  - Dashboard‑Kacheln: Pending Reviews, Auto‑Approved (7d), Fehler, Aktive Postfächer.
-  - Kontakte: Filter (Firma, Domain, Land, Tag, „zuletzt kontaktet“), Detail inkl. Änderungsverlauf.
-  - Export: CSV/vCard Endpoint (Server‑Action) + UI‑Button.
+  - Navigation: Dashboard, Reviews, Kontakte, Einstellungen (bestehend ergÃ¤nzen), Firmen (bestehend), Benutzer (spÃ¤ter).
+  - Dashboardâ€‘Kacheln: Pending Reviews, Autoâ€‘Approved (7d), Fehler, Aktive PostfÃ¤cher.
+  - Kontakte: Filter (Firma, Domain, Land, Tag, â€žzuletzt kontaktetâ€œ), Detail inkl. Ã„nderungsverlauf.
+  - Export: CSV/vCard Endpoint (Serverâ€‘Action) + UIâ€‘Button.
 - Auth/Security:
-  - Clerk: TOTP/2FA aktivieren; Rollen aus Membership ableiten (Owner‑gated Settings/Policies).
-  - Rate‑Limits auf `httpEndpoint` (clientState prüfen, schnelle 202‑Antwort, Body‑Size Limits).
-  - Secrets: Graph‑Zertifikat/Client Secret/LLM Key als Convex Env‑Secrets; keine Secrets im Repo.
+  - Clerk: TOTP/2FA aktivieren; Rollen aus Membership ableiten (Ownerâ€‘gated Settings/Policies).
+  - Rateâ€‘Limits auf `httpEndpoint` (clientState prÃ¼fen, schnelle 202â€‘Antwort, Bodyâ€‘Size Limits).
+  - Secrets: Graphâ€‘Zertifikat/Client Secret/LLM Key als Convex Envâ€‘Secrets; keine Secrets im Repo.
 - Monitoring/Health:
   - `GET /health` als `httpEndpoint` (liveness/readiness Checks: DB, Env, Subscription Renewals).
   - Strukturierte Logs (JSON) mit `requestId`, `tenantId`; optional Sentry/OTel.
-  - Dead‑Letter: Fehlgeschlagene Jobs in `messages`/`ingestErrors` protokollieren.
+  - Deadâ€‘Letter: Fehlgeschlagene Jobs in `messages`/`ingestErrors` protokollieren.
 - Tests (MVP):
-  - Unit: Parser/Trim/Normalizer, Dedupe‑Scoring.
-  - Integration: Webhook‑Flow mit Fake‑Payload, Delta‑Sync (Mock), LLM‑Mock (verschiedene Schemas/Fehler), Proposal‑Approve.
-  - E2E (später): Minimales Playwright‑Szenario Onboarding→Review→Approve.
+  - Unit: Parser/Trim/Normalizer, Dedupeâ€‘Scoring.
+  - Integration: Webhookâ€‘Flow mit Fakeâ€‘Payload, Deltaâ€‘Sync (Mock), LLMâ€‘Mock (verschiedene Schemas/Fehler), Proposalâ€‘Approve.
+  - E2E (spÃ¤ter): Minimales Playwrightâ€‘Szenario Onboardingâ†’Reviewâ†’Approve.
 - Rollout:
-  - Staging‑Tenant mit Test‑Mailboxen; App‑Registrierung in Staging/Tenant.
-  - Smoke‑Tests: Webhook‑Validation, Delta‑Import, erster Proposal, Auto‑Approve.
-  - Go‑Live: Produktions‑App‑Registrierung, Zertifikats‑Rotation dokumentiert, Cron aktiv.
+  - Stagingâ€‘Tenant mit Testâ€‘Mailboxen; Appâ€‘Registrierung in Staging/Tenant.
+  - Smokeâ€‘Tests: Webhookâ€‘Validation, Deltaâ€‘Import, erster Proposal, Autoâ€‘Approve.
+  - Goâ€‘Live: Produktionsâ€‘Appâ€‘Registrierung, Zertifikatsâ€‘Rotation dokumentiert, Cron aktiv.
 
-Codebase‑Impact
+Codebaseâ€‘Impact
 - `packages/backend/convex/healthCheck.ts`: erweitern oder `health.ts` neu.
-- `apps/web/src/routes` Ergänzungen: `dashboard.tsx`, `reviews.tsx`, `review.$id.tsx`, `settings.tsx` erweitern.
-- Utility: `apps/web/src/components` für Diff‑View, Confidence‑Badge, Bulk‑Actions.
+- `apps/web/src/routes` ErgÃ¤nzungen: `dashboard.tsx`, `reviews.tsx`, `review.$id.tsx`, `settings.tsx` erweitern.
+- Utility: `apps/web/src/components` fÃ¼r Diffâ€‘View, Confidenceâ€‘Badge, Bulkâ€‘Actions.
 
 Checks/Entscheide
 - Telemetrie: Sentry/OTel ja/nein im MVP.
-- Export‑Formate: vCard Version (3.0/4.0), Feld‑Mapping fixieren.
+- Exportâ€‘Formate: vCard Version (3.0/4.0), Feldâ€‘Mapping fixieren.
 
 Akzeptanzkriterien
-- Admin kann Microsoft verbinden, Postfächer wählen, Subscriptions sehen.
+- Admin kann Microsoft verbinden, PostfÃ¤cher wÃ¤hlen, Subscriptions sehen.
 - Reviews funktionieren inkl. Approve/Reject/Edit, Dashboard zeigt KPIs.
-- Health Endpoint grün; Fehler werden geloggt; Basis‑Tests grün.
+- Health Endpoint grÃ¼n; Fehler werden geloggt; Basisâ€‘Tests grÃ¼n.
 
-—
+â€”
 
-## Ergänzende Spezifika aus der Langfassung (abgeglichen und übernommen)
+## ErgÃ¤nzende Spezifika aus der Langfassung (abgeglichen und Ã¼bernommen)
 
 - Gruppierung pro `conversationId` (Schritt 2): nur neueste inbound Nachricht verarbeiten; `from.address` nicht in eigenen Domains (Settings).
-- Zitat‑Trim & Noise‑Filter (Schritt 3): Gmail/Outlook Marker, Disclaimer, `blockquote`‑Ketten; `img alt` sammeln.
-- LLM‑Schema/Validierung (Schritt 3): Strict JSON, E.164, RFC‑Check, Unicode NFC, Confidence Score.
-- Dedupe/Merge/History (Schritt 4): Primär E‑Mail, Sekundär Name×Firma/Domain, Phone, LinkedIn, Fuzzy‑Score; Merge‑Priorität; Proposal bei Konflikt.
-- Auto‑Approve (Schritt 4): Threshold + „nur leere Felder“, sensible Felder nie auto.
-- UI/UX (Schritt 5): Dashboard/Reviews/Contacts/Settings, Bulk‑Aktionen, Diff‑Split‑View.
-- API‑Design (Schritt 2/5): Convex `httpEndpoint` statt separater REST‑API; Endpoints: `/webhooks/graph`, `/health`, optionale `/export`.
-- Idempotenz & Locking (Schritt 2): Schlüssel `msg:$tenantId:$internetMessageId` in Convex‑Tabelle; Duplicate → nur Touchpoint aktualisieren.
+- Zitatâ€‘Trim & Noiseâ€‘Filter (Schritt 3): Gmail/Outlook Marker, Disclaimer, `blockquote`â€‘Ketten; `img alt` sammeln.
+- LLMâ€‘Schema/Validierung (Schritt 3): Strict JSON, E.164, RFCâ€‘Check, Unicode NFC, Confidence Score.
+- Dedupe/Merge/History (Schritt 4): PrimÃ¤r Eâ€‘Mail, SekundÃ¤r NameÃ—Firma/Domain, Phone, LinkedIn, Fuzzyâ€‘Score; Mergeâ€‘PrioritÃ¤t; Proposal bei Konflikt.
+- Autoâ€‘Approve (Schritt 4): Threshold + â€žnur leere Felderâ€œ, sensible Felder nie auto.
+- UI/UX (Schritt 5): Dashboard/Reviews/Contacts/Settings, Bulkâ€‘Aktionen, Diffâ€‘Splitâ€‘View.
+- APIâ€‘Design (Schritt 2/5): Convex `httpEndpoint` statt separater RESTâ€‘API; Endpoints: `/webhooks/graph`, `/health`, optionale `/export`.
+- Idempotenz & Locking (Schritt 2): SchlÃ¼ssel `msg:$tenantId:$internetMessageId` in Convexâ€‘Tabelle; Duplicate â†’ nur Touchpoint aktualisieren.
 
-—
+â€”
 
-## Architektur‑Abweichungen zur ursprünglichen Vision und Begründung
+## Architekturâ€‘Abweichungen zur ursprÃ¼nglichen Vision und BegrÃ¼ndung
 
-- Kein NestJS/Next.js/Postgres/Redis im MVP: Euer bestehender Stack (Convex + React + Clerk) deckt alle MVP‑Anforderungen ab, reduziert Betrieb (Single‑VM nicht nötig). Optional spätere Migration zu Managed Postgres/Redis, falls Skala/Features es erfordern.
-- Webhooks/Worker in Convex: `httpEndpoint` + `action` + Scheduler ersetzt dedizierten Worker. Für Spezialfälle (OCR/Tesseract) optional schlanker externer Microservice.
-- Microsoft Graph SDK: Für MVP direkte `fetch`‑Calls (geringere Abhängigkeiten); SDK optional nachziehen.
+- Kein NestJS/Next.js/Postgres/Redis im MVP: Euer bestehender Stack (Convex + React + Clerk) deckt alle MVPâ€‘Anforderungen ab, reduziert Betrieb (Singleâ€‘VM nicht nÃ¶tig). Optional spÃ¤tere Migration zu Managed Postgres/Redis, falls Skala/Features es erfordern.
+- Webhooks/Worker in Convex: `httpEndpoint` + `action` + Scheduler ersetzt dedizierten Worker. FÃ¼r SpezialfÃ¤lle (OCR/Tesseract) optional schlanker externer Microservice.
+- Microsoft Graph SDK: FÃ¼r MVP direkte `fetch`â€‘Calls (geringere AbhÃ¤ngigkeiten); SDK optional nachziehen.
 
-—
+â€”
 
-## Offene Entscheidungen (für Senior‑Review)
+## Offene Entscheidungen (fÃ¼r Seniorâ€‘Review)
 
-- LLM‑Provider Auswahl (EU/CH), Kosten/Latenz, PII‑Richtlinien.
-- OCR jetzt vs. später; wenn jetzt: wo hosten (kleiner Node‑Service)?
-- JSON‑Schema Feinschliff (Mehrfach‑Adressen/‑Phones, Felderpflichten).
-- Fuzzy‑Match Schwellenwerte und Metriken (A/B gegen manuelle Labels?).
-- Scheduler in Convex vs. externer Cron (z. B. GitHub Actions) – Betriebsvorzug.
-- Tenancy‑Modell: Single‑Tenant pro User im MVP oder echte Multi‑Tenant‑Organisationen mit Einladungen.
+- LLMâ€‘Provider Auswahl (EU/CH), Kosten/Latenz, PIIâ€‘Richtlinien.
+- OCR jetzt vs. spÃ¤ter; wenn jetzt: wo hosten (kleiner Nodeâ€‘Service)?
+- JSONâ€‘Schema Feinschliff (Mehrfachâ€‘Adressen/â€‘Phones, Felderpflichten).
+- Fuzzyâ€‘Match Schwellenwerte und Metriken (A/B gegen manuelle Labels?).
+- Scheduler in Convex vs. externer Cron (z.â€¯B. GitHub Actions) â€“ Betriebsvorzug.
+- Tenancyâ€‘Modell: Singleâ€‘Tenant pro User im MVP oder echte Multiâ€‘Tenantâ€‘Organisationen mit Einladungen.
 
-—
+â€”
 
-## Konkrete nächste Schritte (Umsetzungsreihenfolge kurz)
+## Konkrete nÃ¤chste Schritte (Umsetzungsreihenfolge kurz)
 
 1) Schema erweitern: tenants/memberships/settings/policies/proposals/messages/conversations; contacts um `tenantId` + Indexe.
-2) Membership/ACL einziehen; Frontend‑Context `tenantId/role` auslesen; bestehende Listen/Details auf Tenant‑Scope.
-3) Graph: `httpEndpoint` + Validation/Decrypt; Subscriptions CRUD; Renewal/Delta Actions; Onboarding‑UI.
-4) Extract‑Pipeline (Trim/Locate/LLM/Normalize) + Dedupe/Merge/Proposals + UI Reviews.
-5) Dashboard/Health/Logging/Tests; Rollout Staging→Prod.
+2) Membership/ACL einziehen; Frontendâ€‘Context `tenantId/role` auslesen; bestehende Listen/Details auf Tenantâ€‘Scope.
+3) Graph: `httpEndpoint` + Validation/Decrypt; Subscriptions CRUD; Renewal/Delta Actions; Onboardingâ€‘UI.
+4) Extractâ€‘Pipeline (Trim/Locate/LLM/Normalize) + Dedupe/Merge/Proposals + UI Reviews.
+5) Dashboard/Health/Logging/Tests; Rollout Stagingâ†’Prod.
 
-—
+â€”
 
 ## Testplan (konkretisiert)
 
-- Unit: `trimQuotes()`, `stripDisclaimers()`, `locateSignature()`, `normalizePhones()/emails()/urls()`, Dedupe‑Scorer.
-- Integration: Fake Webhook (Handshake + Event), Delta‑Sync mit Mock‑Tokens, LLM‑Mock verschiedenster Antworten, Proposal‑Lifecycle.
-- Smoke: End‑to‑End über UI (Onboarding→erste Mail→Review→Approve→Kontakt aktualisiert).
+- Unit: `trimQuotes()`, `stripDisclaimers()`, `locateSignature()`, `normalizePhones()/emails()/urls()`, Dedupeâ€‘Scorer.
+- Integration: Fake Webhook (Handshake + Event), Deltaâ€‘Sync mit Mockâ€‘Tokens, LLMâ€‘Mock verschiedenster Antworten, Proposalâ€‘Lifecycle.
+- Smoke: Endâ€‘toâ€‘End Ã¼ber UI (Onboardingâ†’erste Mailâ†’Reviewâ†’Approveâ†’Kontakt aktualisiert).
 
-—
+â€”
 
 ## Betriebsaspekte
 
-- Secrets: Über Convex Env; Rotation für Graph‑Zertifikat dokumentieren.
-- Rate‑Limits & Backpressure: Schnelle 202‑Antworten, Work‑Queue über Actions, Dead‑Letter Logging.
-- Observability: Strukturierte Logs mit `tenantId`/`requestId`, Health‑Endpoint, optional Sentry/OTel.
+- Secrets: Ãœber Convex Env; Rotation fÃ¼r Graphâ€‘Zertifikat dokumentieren.
+- Rateâ€‘Limits & Backpressure: Schnelle 202â€‘Antworten, Workâ€‘Queue Ã¼ber Actions, Deadâ€‘Letter Logging.
+- Observability: Strukturierte Logs mit `tenantId`/`requestId`, Healthâ€‘Endpoint, optional Sentry/OTel.
 
-—
+â€”
 
-Stand: erstellt für eure aktuelle Codebasis. Änderungen/Präzisierungen nach Senior‑Review gerne einpflegen.
+Stand: erstellt fÃ¼r eure aktuelle Codebasis. Ã„nderungen/PrÃ¤zisierungen nach Seniorâ€‘Review gerne einpflegen.
+
 
