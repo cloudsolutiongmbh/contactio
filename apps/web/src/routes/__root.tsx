@@ -21,11 +21,11 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
     head: () => ({
         meta: [
             {
-                title: "Contactio – Kontakte verwalten",
+                title: "contactio – Automatisches Contact Management | Swiss Made",
             },
             {
                 name: "description",
-                content: "Contactio.ch – Verwalte alle deine Kontakte einfach und übersichtlich.",
+                content: "contactio extrahiert automatisch Kontaktdaten aus E-Mail-Signaturen. KI-gestützt, GDPR-konform und 100% Swiss Hosted. Microsoft 365 Integration inklusive.",
             },
         ],
         links: [
@@ -41,6 +41,9 @@ function RootComponent() {
 	const isFetching = useRouterState({
 		select: (s) => s.isLoading,
 	});
+	const pathname = useRouterState({
+		select: (s) => s.location.pathname,
+	});
   const { organization } = useOrganization();
   const { user } = useUser();
   const tenantId = organization?.id ?? (user ? `user:${user.id}` : undefined);
@@ -49,6 +52,9 @@ function RootComponent() {
   if (tenancyEnabled && tenantId) {
     useQuery(api.tenants.me, { tenantId } as any);
   }
+
+	// Show landing page layout on the home page
+	const isLandingPage = pathname === "/";
 
 	return (
 		<>
@@ -59,12 +65,18 @@ function RootComponent() {
 				disableTransitionOnChange
 				storageKey="vite-ui-theme"
 			>
-				<div className="grid h-svh grid-cols-1 md:grid-cols-[14rem_1fr]">
-					<Sidebar />
-					<div className="min-w-0 overflow-auto">
+				{isLandingPage ? (
+					<div className="h-svh overflow-auto">
 						{isFetching ? <Loader /> : <Outlet />}
 					</div>
-				</div>
+				) : (
+					<div className="grid h-svh grid-cols-1 md:grid-cols-[14rem_1fr]">
+						<Sidebar />
+						<div className="min-w-0 overflow-auto">
+							{isFetching ? <Loader /> : <Outlet />}
+						</div>
+					</div>
+				)}
 				<Toaster richColors />
 			</ThemeProvider>
 			<TanStackRouterDevtools position="bottom-left" />

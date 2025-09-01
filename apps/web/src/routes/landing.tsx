@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Authenticated, Unauthenticated } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,11 +7,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Mail, Zap, Shield, Globe, Users, CheckCircle, ArrowRight, Star } from "lucide-react";
 
-export const Route = createFileRoute("/")({
-  component: HomeComponent,
+export const Route = createFileRoute("/landing")({
+  component: LandingComponent,
 });
 
-function HomeComponent() {
+function LandingComponent() {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -29,28 +28,6 @@ function HomeComponent() {
   };
 
   return (
-    <>
-      <Authenticated>
-        {/* Authenticated users see the landing page but with option to go to app */}
-        <LandingPageContent email={email} setEmail={setEmail} handleWaitlist={handleWaitlist} isSubmitting={isSubmitting} showAppAccess={true} />
-      </Authenticated>
-      
-      <Unauthenticated>
-        {/* Unauthenticated users see the full landing page */}
-        <LandingPageContent email={email} setEmail={setEmail} handleWaitlist={handleWaitlist} isSubmitting={isSubmitting} showAppAccess={false} />
-      </Unauthenticated>
-    </>
-  );
-}
-
-function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, showAppAccess }: {
-  email: string;
-  setEmail: (email: string) => void;
-  handleWaitlist: (e: React.FormEvent) => Promise<void>;
-  isSubmitting: boolean;
-  showAppAccess: boolean;
-}) {
-  return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       {/* Navigation */}
       <nav className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
@@ -66,15 +43,9 @@ function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, sho
               <a href="#features" className="text-gray-600 hover:text-blue-600">Funktionen</a>
               <a href="#pricing" className="text-gray-600 hover:text-blue-600">Preise</a>
               <a href="#about" className="text-gray-600 hover:text-blue-600">Über uns</a>
-              {showAppAccess ? (
-                <Link to="/contacts" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                  Zur App
-                </Link>
-              ) : (
-                <Link to="/contacts" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                  Anmelden
-                </Link>
-              )}
+              <Link to="/" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                Anmelden
+              </Link>
             </div>
           </div>
         </div>
@@ -88,30 +59,21 @@ function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, sho
               🚀 Revolutionieren Sie Ihr Contact Management
             </Badge>
             <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-              Schluss mit <span className="text-blue-600">veralteten</span><br />
-              Kontaktdaten
+              Nie wieder <span className="text-blue-600">manuelle</span><br />
+              Kontakt-Erfassung
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-              <strong>contactio</strong> zieht automatisch Kontakte aus E-Mail-Signaturen und hält sie 
-              in <em>allen</em> deinen Systemen aktuell. Abacus, Selectline, Teams, 3CX – überall die gleichen, frischen Daten.
+              <strong>contactio</strong> extrahiert automatisch Kontaktdaten aus E-Mail-Signaturen 
+              und hält Ihr CRM immer aktuell. Mit KI-Power, Swiss Quality und Microsoft 365 Integration.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-              {showAppAccess ? (
-                <Link to="/contacts" className="group">
-                  <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-6 text-white">
-                    Zur App
-                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-              ) : (
-                <Link to="/contacts" className="group">
-                  <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-6 text-white">
-                    Jetzt kostenlos testen
-                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-              )}
+              <Link to="/" className="group">
+                <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-6 text-white">
+                  Jetzt kostenlos testen
+                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
               <Button variant="outline" size="lg" className="text-lg px-8 py-6" onClick={() => document.getElementById('demo')?.scrollIntoView()}>
                 Demo ansehen
               </Button>
@@ -147,51 +109,51 @@ function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, sho
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
-              <Badge className="mb-4 bg-red-100 text-red-700">Das nervt</Badge>
+              <Badge className="mb-4 bg-red-100 text-red-700">Das Problem</Badge>
               <h2 className="text-3xl font-bold text-gray-900 mb-6">
-                Kontakte aktuell halten ist die Hölle
+                Ihr Team verliert täglich wertvolle Zeit
               </h2>
               <div className="space-y-4 text-gray-600">
                 <div className="flex items-start gap-3">
                   <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
-                  <p><strong>Jemand wechselt den Job?</strong> Manuell in 5 verschiedenen Systemen ändern</p>
+                  <p><strong>45 Minuten täglich</strong> für manuelle Kontakt-Erfassung pro Person</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
-                  <p><strong>Neue Kontakte?</strong> Abtippen aus E-Mail-Signaturen – jedes. einzelne. Mal.</p>
+                  <p><strong>Veraltete CRM-Daten</strong> führen zu verpassten Geschäftschancen</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
-                  <p><strong>Abacus hat andere Daten als Teams?</strong> Welche sind jetzt richtig?</p>
+                  <p><strong>Inkonsistente Daten</strong> durch unterschiedliche Eingabemethoden</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
-                  <p><strong>Wichtige Deals platzen</strong> weil du mit veralteten Kontaktdaten arbeitest</p>
+                  <p><strong>Wichtige Kontakte</strong> gehen im E-Mail-Chaos verloren</p>
                 </div>
               </div>
             </div>
             
             <div>
-              <Badge className="mb-4 bg-green-100 text-green-700">So easy</Badge>
+              <Badge className="mb-4 bg-green-100 text-green-700">Die Lösung</Badge>
               <h2 className="text-3xl font-bold text-gray-900 mb-6">
-                contactio macht's für dich
+                contactio macht alles automatisch
               </h2>
               <div className="space-y-4 text-gray-600">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-6 h-6 text-green-500 mt-1 flex-shrink-0" />
-                  <p><strong>KI zieht Kontakte aus E-Mails:</strong> Automatisch, ohne dass du was machen musst</p>
+                  <p><strong>100% automatisch:</strong> Kontakte aus E-Mail-Signaturen extrahieren</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-6 h-6 text-green-500 mt-1 flex-shrink-0" />
-                  <p><strong>Überall die gleichen Daten:</strong> Abacus, Selectline, Teams, 3CX – alles sync</p>
+                  <p><strong>KI-gestützt:</strong> Höchste Genauigkeit bei der Daten-Extraktion</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-6 h-6 text-green-500 mt-1 flex-shrink-0" />
-                  <p><strong>Smart Analytics:</strong> Wann war der letzte Kontakt? contactio weiss es</p>
+                  <p><strong>Smart Merge:</strong> Automatisches Update bestehender Kontakte</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-6 h-6 text-green-500 mt-1 flex-shrink-0" />
-                  <p><strong>Zero Maintenance:</strong> Läuft einfach im Hintergrund und hält alles fresh</p>
+                  <p><strong>Review-System:</strong> Vollständige Kontrolle über alle Änderungen</p>
                 </div>
               </div>
             </div>
@@ -205,11 +167,11 @@ function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, sho
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-blue-100 text-blue-700">Funktionen</Badge>
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              KI zieht Kontakte aus E-Mails, sync sie überall
+              Alles was Sie für perfektes Contact Management brauchen
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              E-Mail-Signaturen → KI-Extraktion → alle deine Systeme aktuell. 
-              So einfach ist das. Endlich.
+              Von der automatischen Erfassung bis zur intelligenten Analyse - 
+              contactio deckt alle Aspekte modernen Contact Managements ab.
             </p>
           </div>
           
@@ -219,9 +181,9 @@ function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, sho
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4 group-hover:bg-blue-200 transition-colors">
                   <Zap className="h-6 w-6 text-blue-600" />
                 </div>
-                <CardTitle>KI-Extraktion aus E-Mails</CardTitle>
+                <CardTitle>Automatische Extraktion</CardTitle>
                 <CardDescription>
-                  Kontakte automatisch aus E-Mail-Signaturen ziehen – 95%+ Genauigkeit, zero Aufwand
+                  KI extrahiert Kontaktdaten aus E-Mail-Signaturen mit 95%+ Genauigkeit
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -231,9 +193,9 @@ function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, sho
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4 group-hover:bg-green-200 transition-colors">
                   <Mail className="h-6 w-6 text-green-600" />
                 </div>
-                <CardTitle>Sync zu Swiss Tools</CardTitle>
+                <CardTitle>Microsoft 365 Integration</CardTitle>
                 <CardDescription>
-                  Abacus, Selectline, Teams, 3CX – deine Kontakte landen automatisch überall
+                  Nahtlose Anbindung an Outlook und Exchange mit Echtzeit-Synchronisation
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -243,9 +205,9 @@ function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, sho
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4 group-hover:bg-purple-200 transition-colors">
                   <Users className="h-6 w-6 text-purple-600" />
                 </div>
-                <CardTitle>Letzte Kontakte tracken</CardTitle>
+                <CardTitle>Smart Deduplizierung</CardTitle>
                 <CardDescription>
-                  Wann hast du das letzte Mal geschrieben? Angerufen? contactio weiss es
+                  Intelligentes Zusammenführen von Kontakten und Vermeidung von Duplikaten
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -267,9 +229,9 @@ function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, sho
                 <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4 group-hover:bg-indigo-200 transition-colors">
                   <CheckCircle className="h-6 w-6 text-indigo-600" />
                 </div>
-                <CardTitle>Läuft automatisch</CardTitle>
+                <CardTitle>Review & Approve</CardTitle>
                 <CardDescription>
-                  Einmal setup, dann vergessen – contactio läuft im Hintergrund und macht alles
+                  Vollständige Kontrolle durch intelligentes Review-System für alle Änderungen
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -279,9 +241,9 @@ function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, sho
                 <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center mb-4 group-hover:bg-pink-200 transition-colors">
                   <Star className="h-6 w-6 text-pink-600" />
                 </div>
-                <CardTitle>Swiss Privacy First</CardTitle>
+                <CardTitle>Multi-Tenant Ready</CardTitle>
                 <CardDescription>
-                  Deine Daten bleiben in der Schweiz. GDPR-konform und ohne Bullshit
+                  Perfekt für Agenturen und Unternehmen mit mehreren Mandanten
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -295,7 +257,7 @@ function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, sho
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-green-100 text-green-700">So einfach geht's</Badge>
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              E-Mail bekommen → KI macht den Rest
+              In 3 Schritten zu perfektem Contact Management
             </h2>
           </div>
           
@@ -304,10 +266,10 @@ function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, sho
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <span className="text-2xl font-bold text-blue-600">1</span>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-4">KI liest E-Mail-Signaturen</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Microsoft 365 verbinden</h3>
               <p className="text-gray-600">
-                Jede E-Mail die reinkommt wird gescannt. KI zieht automatisch 
-                alle Kontaktdaten aus der Signatur.
+                Verbinden Sie contactio einmalig mit Ihrem Microsoft 365 Account. 
+                Sicher und GDPR-konform.
               </p>
             </div>
             
@@ -315,10 +277,10 @@ function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, sho
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <span className="text-2xl font-bold text-green-600">2</span>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Sync zu allen Tools</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-4">E-Mails empfangen</h3>
               <p className="text-gray-600">
-                Kontakt landet automatisch in Abacus, Selectline, Teams, 3CX 
-                oder wo auch immer du willst.
+                Arbeiten Sie ganz normal. contactio analysiert automatisch 
+                alle eingehenden E-Mails im Hintergrund.
               </p>
             </div>
             
@@ -326,10 +288,10 @@ function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, sho
               <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <span className="text-2xl font-bold text-purple-600">3</span>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Analytics & Insights</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Review & Approve</h3>
               <p className="text-gray-600">
-                Wann war der letzte Kontakt? Welche Trends? 
-                contactio trackt alles und gibt dir die Insights.
+                Prüfen und bestätigen Sie neue Kontakte mit einem Klick. 
+                Alles andere macht contactio automatisch.
               </p>
             </div>
           </div>
@@ -343,16 +305,9 @@ function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, sho
             <h2 className="text-4xl font-bold mb-4">
               Bereits über 1000 Schweizer Unternehmen vertrauen uns
             </h2>
-            <p className="text-xl text-blue-100 mb-8">
+            <p className="text-xl text-blue-100">
               Von Startups bis zu Grossunternehmen - contactio spart Zeit und Geld
             </p>
-            <div className="flex flex-wrap justify-center items-center gap-8 text-white/80 text-sm">
-              <div>✓ KMU & Startups</div>
-              <div>✓ Treuhand & Beratung</div>
-              <div>✓ Software & Tech</div>
-              <div>✓ Finanzdienstleister</div>
-              <div>✓ Grossunternehmen</div>
-            </div>
           </div>
           
           <div className="grid md:grid-cols-4 gap-8 text-center">
@@ -506,8 +461,8 @@ function LandingPageContent({ email, setEmail, handleWaitlist, isSubmitting, sho
             Bereit für automatisches Contact Management?
           </h2>
           <p className="text-xl mb-8 text-blue-100">
-            Schliessen Sie sich über 1000 zufriedenen Schweizer Unternehmen an.<br />
-            <strong>14 Tage kostenlos testen</strong> – keine Kreditkarte erforderlich, jederzeit kündbar.
+            Schliessen Sie sich über 1000 zufriedenen Schweizer Unternehmen an. 
+            14 Tage kostenlos testen, keine Kreditkarte erforderlich.
           </p>
           
           <form onSubmit={handleWaitlist} className="max-w-md mx-auto mb-8">

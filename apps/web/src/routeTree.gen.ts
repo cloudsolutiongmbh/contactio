@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as LandingRouteImport } from './routes/landing'
+import { Route as ContactsRouteImport } from './routes/contacts'
 import { Route as CompaniesRouteImport } from './routes/companies'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ContactIdRouteImport } from './routes/contact.$id'
@@ -17,6 +19,16 @@ import { Route as ContactIdRouteImport } from './routes/contact.$id'
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LandingRoute = LandingRouteImport.update({
+  id: '/landing',
+  path: '/landing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactsRoute = ContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompaniesRoute = CompaniesRouteImport.update({
@@ -38,12 +50,16 @@ const ContactIdRoute = ContactIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/companies': typeof CompaniesRoute
+  '/contacts': typeof ContactsRoute
+  '/landing': typeof LandingRoute
   '/settings': typeof SettingsRoute
   '/contact/$id': typeof ContactIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/companies': typeof CompaniesRoute
+  '/contacts': typeof ContactsRoute
+  '/landing': typeof LandingRoute
   '/settings': typeof SettingsRoute
   '/contact/$id': typeof ContactIdRoute
 }
@@ -51,20 +67,43 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/companies': typeof CompaniesRoute
+  '/contacts': typeof ContactsRoute
+  '/landing': typeof LandingRoute
   '/settings': typeof SettingsRoute
   '/contact/$id': typeof ContactIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/companies' | '/settings' | '/contact/$id'
+  fullPaths:
+    | '/'
+    | '/companies'
+    | '/contacts'
+    | '/landing'
+    | '/settings'
+    | '/contact/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/companies' | '/settings' | '/contact/$id'
-  id: '__root__' | '/' | '/companies' | '/settings' | '/contact/$id'
+  to:
+    | '/'
+    | '/companies'
+    | '/contacts'
+    | '/landing'
+    | '/settings'
+    | '/contact/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/companies'
+    | '/contacts'
+    | '/landing'
+    | '/settings'
+    | '/contact/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CompaniesRoute: typeof CompaniesRoute
+  ContactsRoute: typeof ContactsRoute
+  LandingRoute: typeof LandingRoute
   SettingsRoute: typeof SettingsRoute
   ContactIdRoute: typeof ContactIdRoute
 }
@@ -76,6 +115,20 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/landing': {
+      id: '/landing'
+      path: '/landing'
+      fullPath: '/landing'
+      preLoaderRoute: typeof LandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contacts': {
+      id: '/contacts'
+      path: '/contacts'
+      fullPath: '/contacts'
+      preLoaderRoute: typeof ContactsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/companies': {
@@ -105,6 +158,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CompaniesRoute: CompaniesRoute,
+  ContactsRoute: ContactsRoute,
+  LandingRoute: LandingRoute,
   SettingsRoute: SettingsRoute,
   ContactIdRoute: ContactIdRoute,
 }

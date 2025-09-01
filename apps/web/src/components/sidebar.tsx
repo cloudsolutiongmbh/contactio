@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 type Item = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; };
 
 const items: Item[] = [
-  { to: "/", label: "Kontakte", icon: Users },
+  { to: "/contacts", label: "Kontakte", icon: Users },
   { to: "/companies", label: "Firmen", icon: Building2 },
   { to: "/settings", label: "Einstellungen", icon: Settings },
 ];

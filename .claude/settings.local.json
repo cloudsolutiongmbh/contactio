@@ -7,7 +7,8 @@
       "Bash(gh repo create:*)",
       "Bash(winget install:*)",
       "Bash(powershell:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(dir apps)"
     ],
     "deny": [],
     "ask": []
