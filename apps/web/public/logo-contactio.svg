@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="320" viewBox="0 0 640 320" role="img" aria-label="Contactio">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="320" rx="32" fill="#0b1020"/>
+  <g transform="translate(40,32)">
+    <rect width="256" height="256" rx="56" fill="url(#g)"/>
+    <g transform="translate(12,12)">
+      <path d="M 168 56 A 80 80 0 1 0 168 168" fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round"/>
+      <g transform="translate(60,84)">
+        <rect x="0" y="0" width="100" height="60" rx="10" fill="#ffffff" opacity="0.95"/>
+        <path d="M 0 6 L 50 36 L 100 6" fill="none" stroke="#7c3aed" stroke-width="8" stroke-linecap="round"/>
+      </g>
+    </g>
+  </g>
+  <g transform="translate(320,108)">
+    <text x="0" y="0" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI" font-size="56" font-weight="700" fill="#e5e7eb">
+      contactio
+    </text>
+    <text x="0" y="44" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI" font-size="18" fill="#9ca3af">
+      Automatisches Contact Management · Swiss Made
+    </text>
+  </g>
+</svg>
+
